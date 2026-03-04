@@ -1,5 +1,16 @@
-// Vercel API route for reordering priorities
-let priorities = [];
+// Vercel API route for reordering priorities with authentication
+const prioritiesByUser = {};
+
+function getUserPriorities(userId) {
+  if (!prioritiesByUser[userId]) {
+    prioritiesByUser[userId] = [];
+  }
+  return prioritiesByUser[userId];
+}
+
+function setUserPriorities(userId, priorities) {
+  prioritiesByUser[userId] = priorities;
+}
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -7,11 +18,24 @@ export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (method === 'OPTIONS') {
     return res.status(200).end();
   }
+
+  // Get user from token
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
+  
+  const userId = authHeader.replace('Bearer ', '');
+  if (!userId) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const priorities = getUserPriorities(userId);
 
   switch (method) {
     case 'PATCH':
@@ -30,8 +54,8 @@ export default async function handler(req, res) {
         return null;
       }).filter(Boolean);
       
-      priorities = reordered;
-      return res.status(200).json(priorities.sort((a, b) => a.order - b.order));
+      setUserPriorities(userId, reordered);
+      return res.status(200).json(reordered.sort((a, b) => a.order - b.order));
     
     default:
       return res.status(405).json({ error: 'Method not allowed' });

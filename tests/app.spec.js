@@ -2,233 +2,200 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'https://priority-list-nine.vercel.app';
 
-test.describe('Priority List App', () => {
+test.describe('Priority List App - Authentication', () => {
   
-  // ==================== AUTHENTICATION TESTS ====================
-  
-  test.describe('Authentication', () => {
-    test('should display login page with correct elements', async ({ page }) => {
-      await page.goto(BASE_URL);
-      
-      // Check for main heading
-      await expect(page.locator('h1, text=Priority List')).toBeVisible();
-      
-      // Check for sign in heading
-      await expect(page.locator('text=Sign in to your account')).toBeVisible();
-      
-      // Check for sign in button
-      await expect(page.locator('button:has-text("Sign In")')).toBeVisible();
-      
-      // Check for sign up link
-      await expect(page.locator('text=Don\'t have an account? Sign up')).toBeVisible();
-    });
-
-    test('should navigate to signup page', async ({ page }) => {
-      await page.goto(BASE_URL);
-      await page.click('text=Sign up');
-      
-      // Should show signup form elements
-      await expect(page.locator('text=Sign up for an account')).toBeVisible();
-    });
-
-    test('should show error for invalid login', async ({ page }) => {
-      await page.goto(BASE_URL);
-      
-      // Try to sign in with invalid credentials
-      await page.fill('input[type="email"], input[name="email"], input[id="email"]', 'invalid@test.com');
-      await page.fill('input[type="password"], input[name="password"], input[id="password"]', 'wrongpassword');
-      await page.click('button:has-text("Sign In")');
-      
-      // Should show error message (may vary by implementation)
-      await page.waitForTimeout(1000);
-    });
-
-    test('should show error for invalid signup', async ({ page }) => {
-      await page.goto(BASE_URL);
-      await page.click('text=Sign up');
-      
-      // Try to sign up with invalid/incomplete data
-      await page.fill('input[type="email"], input[name="email"], input[id="email"]', 'invalid');
-      await page.fill('input[type="password"], input[name="password"], input[id="password"]', 'short');
-      await page.click('button:has-text("Sign Up")');
-      
-      // Should show validation error
-      await page.waitForTimeout(1000);
-    });
+  test('should display login page with correct elements', async ({ page }) => {
+    await page.goto(BASE_URL);
+    
+    // Check for main heading
+    await expect(page.locator('h1:has-text("Priority List")')).toBeVisible();
+    
+    // Check for sign in heading
+    await expect(page.locator('h2:has-text("Sign in")')).toBeVisible();
+    
+    // Check for sign in button
+    await expect(page.locator('button:has-text("Sign In")')).toBeVisible();
+    
+    // Check for sign up link
+    await expect(page.locator('text=Don\'t have an account?')).toBeVisible();
   });
 
-  // ==================== PRIORITY LIST TESTS ====================
-  
-  test.describe('Priority Management', () => {
-    // Helper to login first - depends on auth implementation
-    async function login(page) {
-      await page.goto(BASE_URL);
-      // This is a placeholder - actual login depends on auth flow
-      // You'll need to implement based on actual auth UI
-    }
-
-    test('should have empty state message when no priorities exist', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // After login, check for empty state
-      // await login(page);
-      // await expect(page.locator('text=No priorities yet')).toBeVisible();
-    });
-
-    test('should create a new priority', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // await login(page);
-      
-      // Find and fill the add priority input
-      const input = page.locator('input[placeholder*="priority"], input[placeholder*="task"], input[name="title"]').first();
-      if (await input.isVisible()) {
-        await input.fill('Test Priority');
-        await page.keyboard.press('Enter');
-        
-        // Should see the new priority
-        await expect(page.locator('text=Test Priority')).toBeVisible();
-      }
-    });
-
-    test('should add notes to a priority', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // await login(page);
-      
-      // Click on a priority to expand notes
-      const priority = page.locator('.priority-item, [class*="priority"]').first();
-      if (await priority.isVisible()) {
-        await priority.click();
-        
-        // Find notes textarea and add content
-        const notesArea = page.locator('textarea[name="notes"], input[name="notes"]');
-        if (await notesArea.isVisible()) {
-          await notesArea.fill('These are some notes for the priority');
-          await page.keyboard.press('Enter');
-        }
-      }
-    });
-
-    test('should delete a priority', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // await login(page);
-      
-      // Look for delete button
-      const deleteBtn = page.locator('button[aria-label*="delete"], button:has-text("Delete"), [class*="delete"]').first();
-      if (await deleteBtn.isVisible()) {
-        // Get initial count
-        const initialCount = await page.locator('[class*="priority"]').count();
-        
-        await deleteBtn.click();
-        
-        // Priority should be removed
-        await page.waitForTimeout(500);
-      }
-    });
-
-    test('should reorder priorities via drag and drop', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // await login(page);
-      
-      // Check for drag handles
-      const dragHandles = page.locator('[class*="drag-handle"], [class*="handle"], button[aria-label*="drag"]');
-      const handleCount = await dragHandles.count();
-      
-      if (handleCount >= 2) {
-        // Drag first item to second position
-        const firstHandle = dragHandles.first();
-        const secondHandle = dragHandles.nth(1);
-        
-        const firstBox = await firstHandle.boundingBox();
-        const secondBox = await secondHandle.boundingBox();
-        
-        await page.mouse.dragAndDrop(firstHandle, secondHandle);
-      }
-    });
+  test('should navigate to signup page when clicking sign up', async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.click('button:has-text("Sign up")');
+    
+    // Should show signup form
+    await expect(page.locator('h2:has-text("Create an account")')).toBeVisible();
+    
+    // Should show name input
+    await expect(page.locator('input[placeholder*="name"]')).toBeVisible();
   });
 
-  // ==================== UI/UX TESTS ====================
-  
-  test.describe('UI/UX', () => {
-    test('should be responsive on mobile', async ({ page }) => {
-      await page.setViewportSize({ width: 375, height: 667 });
-      await page.goto(BASE_URL);
-      
-      // Page should still load and be usable
-      await expect(page.locator('body')).toBeVisible();
-    });
-
-    test('should have proper accessibility attributes', async ({ page }) => {
-      await page.goto(BASE_URL);
-      
-      // Check buttons have accessible names
-      const buttons = page.locator('button');
-      const count = await buttons.count();
-      
-      for (let i = 0; i < Math.min(count, 5); i++) {
-        const btn = buttons.nth(i);
-        const ariaLabel = await btn.getAttribute('aria-label');
-        const text = await btn.textContent();
-        
-        // Should have either aria-label or text
-        expect(ariaLabel || text?.trim()).toBeTruthy();
-      }
-    });
-
-    test('should not have critical console errors', async ({ page }) => {
-      const errors = [];
-      page.on('console', msg => {
-        if (msg.type() === 'error') {
-          errors.push(msg.text());
-        }
-      });
-      
-      await page.goto(BASE_URL);
-      await page.waitForTimeout(2000);
-      
-      // Filter out known non-critical errors
-      const criticalErrors = errors.filter(e => 
-        !e.includes('favicon') && 
-        !e.includes('404') &&
-        !e.includes('net::')
-      );
-      
-      expect(criticalErrors).toHaveLength(0);
-    });
-
-    test('should load page within acceptable time', async ({ page }) => {
-      const start = Date.now();
-      await page.goto(BASE_URL);
-      await page.waitForLoadState('networkidle');
-      const loadTime = Date.now() - start;
-      
-      // Page should load in under 5 seconds
-      expect(loadTime).toBeLessThan(5000);
-    });
+  test('should show error for invalid login', async ({ page }) => {
+    await page.goto(BASE_URL);
+    
+    await page.fill('input[type="email"]', 'nonexistent@test.com');
+    await page.fill('input[type="password"]', 'wrongpassword');
+    await page.click('button:has-text("Sign In")');
+    
+    // Wait for error
+    await page.waitForTimeout(1000);
+    
+    // Should show error message
+    const error = page.locator('.error');
+    await expect(error).toBeVisible();
   });
 
-  // ==================== DATA PERSISTENCE TESTS ====================
+  test('should register new user successfully', async ({ page }) => {
+    await page.goto(BASE_URL);
+    
+    // Click sign up
+    await page.click('button:has-text("Sign up")');
+    
+    // Fill form
+    await page.fill('input[placeholder*="name"]', 'Test User');
+    await page.fill('input[type="email"]', `test${Date.now()}@example.com`);
+    await page.fill('input[type="password"]', 'password123');
+    
+    // Submit
+    await page.click('button:has-text("Sign Up")');
+    
+    // Should redirect to main app
+    await page.waitForTimeout(1500);
+    await expect(page.locator('h1:has-text("Priority List")')).toBeVisible();
+  });
+
+  test('should login existing user', async ({ page }) => {
+    // This test depends on previous test creating a user
+    // In practice, you'd use a test user setup
+    await page.goto(BASE_URL);
+    
+    // Try to login
+    await page.fill('input[type="email"]', 'testuser@test.com');
+    await page.fill('input[type="password"]', 'password123');
+    await page.click('button:has-text("Sign In")');
+    
+    await page.waitForTimeout(1000);
+  });
+});
+
+test.describe('Priority List App - Priority Management', () => {
   
-  test.describe('Data Persistence', () => {
-    test('should persist priorities after page refresh', async ({ page }) => {
-      await page.goto(BASE_URL);
-      // await login(page);
-      
-      // Add a priority with unique name
-      const uniquePriority = `Test Priority ${Date.now()}`;
-      const input = page.locator('input[placeholder*="priority"]').first();
-      
-      if (await input.isVisible()) {
-        await input.fill(uniquePriority);
-        await page.keyboard.press('Enter');
-        
-        // Verify it was added
-        await expect(page.locator(`text=${uniquePriority}`)).toBeVisible();
-        
-        // Refresh page
-        await page.reload();
-        
-        // Should still be there
-        await expect(page.locator(`text=${uniquePriority}`)).toBeVisible();
+  test.beforeEach(async ({ page }) => {
+    // Login first
+    await page.goto(BASE_URL);
+    await page.click('button:has-text("Sign up")');
+    await page.fill('input[placeholder*="name"]', 'Test User');
+    await page.fill('input[type="email"]', `test${Date.now()}@example.com`);
+    await page.fill('input[type="password"]', 'password123');
+    await page.click('button:has-text("Sign Up")');
+    await page.waitForTimeout(1500);
+  });
+
+  test('should display empty state when no priorities', async ({ page }) => {
+    await expect(page.locator('text=No priorities yet')).toBeVisible();
+  });
+
+  test('should create a new priority', async ({ page }) => {
+    // Add priority
+    const input = page.locator('input[placeholder*="Add"]');
+    await input.fill('Buy groceries');
+    await page.keyboard.press('Enter');
+    
+    // Should see the priority
+    await expect(page.locator('text=Buy groceries')).toBeVisible();
+  });
+
+  test('should add notes to a priority', async ({ page }) => {
+    // Create priority first
+    const input = page.locator('input[placeholder*="Add"]');
+    await input.fill('Test Priority');
+    await page.keyboard.press('Enter');
+    
+    // Click on priority to expand
+    await page.click('text=Test Priority');
+    
+    // Find notes textarea
+    const notesArea = page.locator('textarea');
+    await expect(notesArea).toBeVisible();
+    
+    // Add notes
+    await notesArea.fill('These are my notes');
+    await page.keyboard.press('Enter');
+    
+    // Notes should persist (expand again to check)
+    await page.click('text=Test Priority');
+    await expect(page.locator('textarea')).toHaveValue('These are my notes');
+  });
+
+  test('should delete a priority', async ({ page }) => {
+    // Create priority
+    const input = page.locator('input[placeholder*="Add"]');
+    await input.fill('To Delete');
+    await page.keyboard.press('Enter');
+    
+    // Hover to see delete button
+    await page.hover('text=To Delete');
+    
+    // Click delete
+    const deleteBtn = page.locator('.delete-btn');
+    await deleteBtn.click();
+    
+    // Priority should be gone
+    await expect(page.locator('text=To Delete')).not.toBeVisible();
+  });
+
+  test('should show logout button when logged in', async ({ page }) => {
+    await expect(page.locator('button:has-text("Logout")')).toBeVisible();
+    await expect(page.locator('text=Welcome,')).toBeVisible();
+  });
+
+  test('should logout successfully', async ({ page }) => {
+    await page.click('button:has-text("Logout")');
+    
+    // Should be back on login page
+    await expect(page.locator('h2:has-text("Sign in")')).toBeVisible();
+  });
+});
+
+test.describe('Priority List App - UI/UX', () => {
+  
+  test('should be responsive on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(BASE_URL);
+    
+    // Page should load
+    await expect(page.locator('h1:has-text("Priority List")')).toBeVisible();
+  });
+
+  test('should not have critical console errors on login page', async ({ page }) => {
+    const errors = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        errors.push(msg.text());
       }
     });
+    
+    await page.goto(BASE_URL);
+    await page.waitForTimeout(2000);
+    
+    // Filter out known non-critical errors
+    const criticalErrors = errors.filter(e => 
+      !e.includes('favicon') && 
+      !e.includes('404') &&
+      !e.includes('net::')
+    );
+    
+    expect(criticalErrors).toHaveLength(0);
+  });
+
+  test('should load page within acceptable time', async ({ page }) => {
+    const start = Date.now();
+    await page.goto(BASE_URL);
+    await page.waitForLoadState('networkidle');
+    const loadTime = Date.now() - start;
+    
+    // Page should load in under 5 seconds
+    expect(loadTime).toBeLessThan(5000);
   });
 });

@@ -1,5 +1,16 @@
-// Vercel API route for single priority CRUD
-let priorities = [];
+// Vercel API route for single priority CRUD with authentication
+const prioritiesByUser = {};
+
+function getUserPriorities(userId) {
+  if (!prioritiesByUser[userId]) {
+    prioritiesByUser[userId] = [];
+  }
+  return prioritiesByUser[userId];
+}
+
+function setUserPriorities(userId, priorities) {
+  prioritiesByUser[userId] = priorities;
+}
 
 export default async function handler(req, res) {
   const { method, query } = req;
@@ -8,12 +19,24 @@ export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // Get user from token
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
+  
+  const userId = authHeader.replace('Bearer ', '');
+  if (!userId) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const priorities = getUserPriorities(userId);
   const index = priorities.findIndex(p => p.id === id);
 
   switch (method) {
@@ -39,6 +62,7 @@ export default async function handler(req, res) {
         updatedAt: new Date().toISOString()
       };
       
+      setUserPriorities(userId, priorities);
       return res.status(200).json(priorities[index]);
     
     case 'DELETE':
@@ -49,7 +73,8 @@ export default async function handler(req, res) {
       
       priorities.splice(index, 1);
       // Reorder remaining
-      priorities = priorities.map((p, i) => ({ ...p, order: i }));
+      const reordered = priorities.map((p, i) => ({ ...p, order: i }));
+      setUserPriorities(userId, reordered);
       
       return res.status(204).end();
     

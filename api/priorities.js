@@ -1,5 +1,18 @@
-// Vercel API route for priorities CRUD
-let priorities = [];
+// Vercel API route for priorities CRUD with user authentication
+// Each user has their own priorities
+
+const prioritiesByUser = {};
+
+function getUserPriorities(userId) {
+  if (!prioritiesByUser[userId]) {
+    prioritiesByUser[userId] = [];
+  }
+  return prioritiesByUser[userId];
+}
+
+function setUserPriorities(userId, priorities) {
+  prioritiesByUser[userId] = priorities;
+}
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -7,18 +20,28 @@ export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // In-memory store (note: this resets on cold start in serverless)
-  // For production, use a database
+  // Get user from token
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
   
+  const userId = authHeader.replace('Bearer ', '');
+  if (!userId) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const priorities = getUserPriorities(userId);
+
   switch (method) {
     case 'GET':
-      // GET /api/priorities - list all
+      // GET /api/priorities - list all for user
       return res.status(200).json(priorities.sort((a, b) => a.order - b.order));
     
     case 'POST':
@@ -39,6 +62,8 @@ export default async function handler(req, res) {
       };
       
       priorities.push(newPriority);
+      setUserPriorities(userId, priorities);
+      
       return res.status(201).json(newPriority);
     
     default:
