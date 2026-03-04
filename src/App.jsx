@@ -29,7 +29,6 @@ function AuthPage({ onLogin }) {
           setLoading(false)
           return
         }
-        // Call register - for now just call onLogin which will use the register
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -37,7 +36,6 @@ function AuthPage({ onLogin }) {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
-        // Auto login after register
         await onLogin(email, password)
       }
     } catch (err) {
@@ -103,7 +101,6 @@ function PriorityApp() {
   const [saving, setSaving] = useState(false)
   const [useApi, setUseApi] = useState(true)
 
-  // Load from API on mount
   useEffect(() => {
     loadPriorities()
   }, [])
@@ -142,7 +139,6 @@ function PriorityApp() {
     }
   }
 
-  // Save to localStorage on change (if not using API)
   useEffect(() => {
     if (!useApi) {
       setSaving(true)
@@ -259,15 +255,13 @@ function PriorityApp() {
   )
 }
 
-function App() {
+function AppContent() {
   const { user, loading, login, register } = useAuth()
 
   async function handleLogin(email, password) {
-    // Try login first, if fails try register (for demo)
     try {
       await login(email, password)
     } catch (err) {
-      // For demo: if login fails, try to register
       await register(email, password, email.split('@')[0])
     }
   }
@@ -280,9 +274,13 @@ function App() {
     )
   }
 
+  return user ? <PriorityApp /> : <AuthPage onLogin={handleLogin} />
+}
+
+function App() {
   return (
     <AuthProvider>
-      {user ? <PriorityApp /> : <AuthPage onLogin={handleLogin} />}
+      <AppContent />
     </AuthProvider>
   )
 }
