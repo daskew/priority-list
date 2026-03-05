@@ -1,30 +1,28 @@
-// API Tests for Priority List with Auth
+// API Tests for Priority List with Supabase
 // Run with: node tests/api.test.js
 
 const API_BASE = process.env.API_BASE || 'https://priority-list-nine.vercel.app/api';
 
+// Test user credentials
 let testUser = {
   email: `test${Date.now()}@example.com`,
   password: 'testpassword123',
   name: 'Test User'
 };
 let authToken = null;
+let createdPriorityId = null;
 
 async function runTests() {
   let passed = 0;
   let failed = 0;
   
-  const results = [];
-  
   async function test(name, fn) {
     try {
       await fn();
       passed++;
-      results.push({ name, status: 'PASS' });
       console.log(`✅ ${name}`);
     } catch (err) {
       failed++;
-      results.push({ name, status: 'FAIL', error: err.message });
       console.log(`❌ ${name}: ${err.message}`);
     }
   }
@@ -46,13 +44,13 @@ async function runTests() {
     };
   }
 
-  console.log('\n🧪 Running Priority List API Tests\n');
+  console.log('\n🧪 Running Priority List API Tests (Supabase)\n');
   console.log('='.repeat(50));
   
   // ==================== AUTH TESTS ====================
   
   // Test: POST register new user
-  await test('POST /api/auth register creates new user', async () => {
+  await test('POST /api/auth register creates new user with encrypted password', async () => {
     const res = await fetch(`${API_BASE}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -89,8 +87,8 @@ async function runTests() {
     authToken = data.token;
   });
 
-  // Test: POST login with invalid credentials
-  await test('POST /api/auth login with invalid credentials fails', async () => {
+  // Test: POST login with invalid password
+  await test('POST /api/auth login with wrong password fails', async () => {
     const res = await fetch(`${API_BASE}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,7 +128,9 @@ async function runTests() {
         name: 'Test'
       })
     });
+    const data = await res.json();
     expect(await res.status).toBe(400);
+    expect(data.error).toContain('6 characters');
   });
 
   // Test: GET auth with valid token
@@ -166,7 +166,6 @@ async function runTests() {
   }
 
   // Test: POST create priority
-  let createdPriorityId = null;
   if (authToken) {
     await test('POST /api/priorities creates a new priority', async () => {
       const res = await fetch(`${API_BASE}/priorities`, {
@@ -219,6 +218,7 @@ async function runTests() {
       const data = await res.json();
       expect(await res.status).toBe(200);
       expect(data.title).toBe('Updated Title');
+      expect(data.notes).toBe('Updated notes');
     });
   }
 
@@ -269,6 +269,54 @@ async function runTests() {
   await test('GET /api/priorities without auth fails', async () => {
     const res = await fetch(`${API_BASE}/priorities`);
     expect(await res.status).toBe(401);
+  });
+
+  // ==================== MULTI-USER ISOLATION TESTS ====================
+  
+  // Create second user and verify they can't see first user's priorities
+  await test('User2 cannot see User1 priorities (ownership isolation)', async () => {
+    // Register second user
+    const user2Email = `test2${Date.now()}@example.com`;
+    const registerRes = await fetch(`${API_BASE}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'register',
+        email: user2Email,
+        password: 'testpassword123',
+        name: 'Test User 2'
+      })
+    });
+    const user2Data = await registerRes.json();
+    const user2Token = user2Data.token;
+    
+    // User1 creates a priority
+    const p1Res = await fetch(`${API_BASE}/priorities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ title: 'User1 Private Priority' })
+    });
+    const p1Data = await p1Res.json();
+    
+    // User2 tries to access User1's priority
+    const p2Res = await fetch(`${API_BASE}/priorities/${p1Data.id}`, {
+      headers: { Authorization: `Bearer ${user2Token}` }
+    });
+    expect(await p2Res.status).toBe(404);
+    
+    // User2 tries to delete User1's priority
+    const delRes = await fetch(`${API_BASE}/priorities/${p1Data.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${user2Token}` }
+    });
+    expect(await delRes.status).toBe(404);
+    
+    // User2 should see empty list
+    const listRes = await fetch(`${API_BASE}/priorities`, {
+      headers: { Authorization: `Bearer ${user2Token}` }
+    });
+    const listData = await listRes.json();
+    expect(listData.length).toHaveLength(0);
   });
 
   // Test: CORS headers
