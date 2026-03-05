@@ -12,6 +12,23 @@ let testUser = {
 let authToken = null;
 let createdPriorityId = null;
 
+function expect(actual) {
+  return {
+    toBe: (expected) => {
+      if (actual !== expected) throw new Error(`Expected ${expected}, got ${actual}`);
+    },
+    toBeTruthy: () => {
+      if (!actual) throw new Error(`Expected truthy value, got ${actual}`);
+    },
+    toContain: (expected) => {
+      if (!actual.includes(expected)) throw new Error(`Expected "${actual}" to contain "${expected}"`);
+    },
+    toHaveLength: (expected) => {
+      if (actual.length !== expected) throw new Error(`Expected length ${expected}, got ${actual.length}`);
+    }
+  };
+}
+
 async function runTests() {
   let passed = 0;
   let failed = 0;
@@ -25,23 +42,6 @@ async function runTests() {
       failed++;
       console.log(`❌ ${name}: ${err.message}`);
     }
-  }
-  
-  async function expect(actual) {
-    return {
-      toBe: (expected) => {
-        if (actual !== expected) throw new Error(`Expected ${expected}, got ${actual}`);
-      },
-      toBeTruthy: () => {
-        if (!actual) throw new Error(`Expected truthy value, got ${actual}`);
-      },
-      toContain: (expected) => {
-        if (!actual.includes(expected)) throw new Error(`Expected "${actual}" to contain "${expected}"`);
-      },
-      toHaveLength: (expected) => {
-        if (actual.length !== expected) throw new Error(`Expected length ${expected}, got ${actual.length}`);
-      }
-    };
   }
 
   console.log('\n🧪 Running Priority List API Tests (Supabase)\n');
