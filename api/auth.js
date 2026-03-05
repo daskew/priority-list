@@ -1,11 +1,24 @@
 // Vercel API route for authentication with Supabase
 import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://ztoiuatbnlrfhgxnfipc.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_3Xb5oMlfhUBuYjdSEKugCw_1cEBH9hT';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Simple hash using SHA-256 with salt
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password, salt, hash) {
+  return hashPassword(password, salt) === hash;
+}
+
+function generateSalt() {
+  return crypto.randomBytes(16).toString('hex');
+}
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -47,8 +60,9 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Email already registered' });
         }
         
-        // Hash password
-        const passwordHash = await bcrypt.hash(password, 10);
+        // Hash password with salt
+        const salt = generateSalt();
+        const passwordHash = hashPassword(password, salt);
         
         // Create user
         const { data: user, error } = await supabase
@@ -56,7 +70,7 @@ export default async function handler(req, res) {
           .insert({
             email,
             name,
-            password_hash: passwordHash
+            password_hash: salt + ':' + passwordHash
           })
           .select()
           .single();
@@ -85,8 +99,10 @@ export default async function handler(req, res) {
           return res.status(401).json({ error: 'Invalid email or password' });
         }
         
-        // Compare password
-        const valid = await bcrypt.compare(password, user.password_hash);
+        // Verify password
+        const [salt, storedHash] = user.password_hash.split(':');
+        const valid = verifyPassword(password, salt, storedHash);
+        
         if (!valid) {
           return res.status(401).json({ error: 'Invalid email or password' });
         }
