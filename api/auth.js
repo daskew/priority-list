@@ -21,24 +21,34 @@ function generateSalt() {
 }
 
 export default async function handler(req, res) {
-  const { method } = req;
-  
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  if (method === 'OPTIONS') {
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  const method = req.method;
+  
   if (method !== 'POST' && method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Parse body for POST
+  let body = {};
+  if (method === 'POST') {
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+  }
+
   try {
     if (method === 'POST') {
-      const { action, email, password, name } = req.body;
+      const { action, email, password, name } = body;
       
       if (action === 'register') {
         if (!email || !password || !name) {
@@ -50,7 +60,7 @@ export default async function handler(req, res) {
         }
         
         // Check if user exists
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('users')
           .select('id, email')
           .eq('email', email)
@@ -75,7 +85,10 @@ export default async function handler(req, res) {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Insert error:', error);
+          return res.status(500).json({ error: error.message });
+        }
         
         return res.status(201).json({ 
           user: { id: user.id, email: user.email, name: user.name },
@@ -140,6 +153,6 @@ export default async function handler(req, res) {
     
   } catch (err) {
     console.error('Auth error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message });
   }
 }
